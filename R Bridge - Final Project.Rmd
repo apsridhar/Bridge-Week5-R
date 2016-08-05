@@ -1,0 +1,98 @@
+---
+title: "R-Final Project"
+author: "Sridhar AlwarsamyPerumalsamy"
+date: "August 2, 2016"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r message=F, warning=F}
+
+#load the hflights and dplyr libraries
+library(dplyr) # for data manipulation
+library(ggplot2) # for plotting
+
+library(hflights)
+
+#load data set in memory
+data(hflights)
+
+```
+
+
+### Exploratory data analysis (hflights dataset)
+
+Exploratory data analysis  is  analyzing data sets to summarize their main characteristics, often with visual methods.It gives the top level view of the data and tries to make some sense of it. It's often the first step in data analysis before using other techniques.
+
+
+### About hflights dataset
+
+This data set contains data about the flight departed Houston in 2011. We analyse this data set and answer the following 3 questions.
+
+1.Find the average arrival delay of more than 10  minutes for a destination <br>
+2.Find flights arrived, departed per airline with no delay<br>
+3.Analyse Airline performance stats. total flights to  delayed flights  ratio<br>
+
+<h4>1.Find the average arrival delay of more than 10  minutes for a destination </h4>
+
+```{r message=F, warning=F}
+#convert the dataframe to tbl_df
+flights <- tbl_df(hflights)
+dest <- group_by(flights, Dest)
+
+destdelaysummary=summarise(dest, avg_delay = mean(ArrDelay, na.rm = TRUE))
+
+destdelaysummary=select(destdelaysummary,Dest, avg_delay)
+
+selectedsummary=filter(destdelaysummary, avg_delay > 10)
+
+selectedsummary
+
+ggplot(selectedsummary)+
+aes(x = Dest,  y=avg_delay) +
+geom_point()
+
+```
+
+
+<h4>2.Find flights arrived, departed per airline with no delay.</h4>
+
+
+```{r message=F, warning=F}
+
+FlightDate<-paste(hflights$Year, hflights$Month, hflights$DayofMonth,sep="-")
+data<-cbind(hflights,FlightDate)
+
+flights <- tbl_df(data)
+
+nodelaysummary=select(flights,DayOfWeek, UniqueCarrier,Origin, Dest,ArrDelay,DepDelay,FlightDate)
+
+nodelaysummary=filter(nodelaysummary, ArrDelay <= 0, DepDelay <= 0)
+
+nodelaysummary
+
+qplot(UniqueCarrier, data=nodelaysummary, geom="bar")
+
+```
+
+<h4>3.Analyse Airline performance stats. total flights to  delayed flights  ratio</h4>
+
+```{r message=F, warning=F }
+
+library(sqldf)
+arrivaldeplayedflights = sqldf("select UniqueCarrier, count(ArrDelay) as delayedflights from hflights where ArrDelay >0 group by UniqueCarrier")
+
+allarrivalflights=sqldf("select UniqueCarrier, count(ArrDelay) as totalflights from hflights where ArrDelay is not null group by UniqueCarrier")
+
+stats<-merge(arrivaldeplayedflights,allarrivalflights,all=TRUE)
+
+ratio<-with(stats, 100*delayedflights/totalflights)
+#add column
+stats<-cbind(stats,ratio)
+stats
+
+```
